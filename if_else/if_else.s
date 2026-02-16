@@ -5,7 +5,7 @@ section .data
   o_msg db ' '
   b_msg db ' b', 0x0A
   
-  a_msg_len equ $ - a_msg ; tinh tu a_msg toi diem hien tai
+  a_msg_len equ $ - a_msg ;get length from a_msg until the current position  
   
 section .text
 global _start
@@ -24,11 +24,11 @@ _start:
   mov rdi, 0
   syscall
   
-_ftcompare:
-  mov r8, [a] ; lay gia tri tai dia chi cua a ghi vao r8
+_ftcompare: ;_label: code does not run 
+  mov r8, [a] ;get the value from address stored at a into register r8 
   cmp r8, [b]
-  ja _aab
-  je _aeb
+  ja _aab ;aab = a above b
+  je _aeb ;aeb = a equal b
   mov byte [o_msg], '<'
   ret
   
