@@ -27,34 +27,35 @@ all: $(LIB) $(TEST)
 
 $(LIB): $(ASM_OBJ) | $(LIB_DIR)
 	$(AR) $(AR_FLAGS) $@ $^
-	@echo "✓  Static library built: $@"
+	@echo "✓  Static library built: $@."
 
-$(TEST): main.c $(LIB)
-	$(CC) $(CC_FLAGS) $< -L$(LIB_DIR) -lasm -o $@
-	@echo "✓  Test built:    $@"
-
-$(OBJ_DIR)/main.o: main.c | $(OBJ_DIR)
-	$(CC) $(CC_FLAGS) $< -o $@
+$(TEST): main.o $(LIB)
+	$(CC) $(CC_FLAGS) main.o -L./$(LIB_DIR) -lasm -o $(TEST)
+	@echo "✓  Test built:    $@."
 
 $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)
-	@echo "✓  Object folder built."
+	@echo "✓  Folder built: $@."
 
 $(LIB_DIR):
 	mkdir -p $(LIB_DIR)
-	@echo "✓  Lib folder built."
+	@echo "✓  Folder built: $@."
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.s | $(OBJ_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 	@echo "✓  Object files built."
+
+main.o: main.c
+	$(CC) $(CC_FLAGS) -c $< -o $@
+	@echo "✓  $@ built."
 
 test: $(TEST)
 	@echo "——— Running tests ———"
 	./$(TEST)
 
 clean:
-	rm -rf $(OBJ_DIR) $(LIB_DIR) $(TEST)
-	@echo "✓  Cleaned."
+	rm -rf $(OBJ_DIR) $(LIB_DIR) $(TEST) main.o
+	@echo "✓  Everything cleaned."
 
 re: clean all
 

@@ -1,6 +1,9 @@
 section .text
-	global _ft_sum
-_ft_sum:
+	global ft_sum
+
+ft_sum:
 	mov rax, rdi
 	add rax, rsi
 	ret
+
+section .note.GNU-stack noalloc noexec nowrite progbits
