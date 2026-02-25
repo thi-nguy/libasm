@@ -14,7 +14,7 @@ LIB_DIR = lib
 OBJ_DIR = obj
 
 # ---------- Targets ----------------------------------------
-LIB     = $(LIB_DIR)/libasm.a
+NAME  = $(LIB_DIR)/libasm.a
 TEST  = test_libasm
 
 # ---------- Source → Object lists --------------------------
@@ -23,13 +23,13 @@ ASM_SRC = $(wildcard $(SRC_DIR)/*.s)
 ASM_OBJ = $(patsubst $(SRC_DIR)/%.s, $(OBJ_DIR)/%.o, $(ASM_SRC))
 
 # ---------- Targets ----------------------------------
-all: $(LIB) $(TEST)
+all: $(NAME) $(TEST)
 
-$(LIB): $(ASM_OBJ) | $(LIB_DIR)
+$(NAME): $(ASM_OBJ) | $(LIB_DIR)
 	$(AR) $(AR_FLAGS) $@ $^
 	@echo "✓  Static library built: $@."
 
-$(TEST): main.o $(LIB)
+$(TEST): main.o $(NAME)
 	$(CC) $(CC_FLAGS) main.o -L./$(LIB_DIR) -lasm -o $(TEST)
 	@echo "✓  Test built:    $@."
 
@@ -54,9 +54,13 @@ test: $(TEST)
 	./$(TEST)
 
 clean:
-	rm -rf $(OBJ_DIR) $(LIB_DIR) $(TEST) main.o
+	rm -rf $(OBJ_DIR) main.o
+	@echo "✓  Object files cleaned."
+
+fclean: clean
+	rm -rf $(LIB_DIR) $(TEST)
 	@echo "✓  Everything cleaned."
 
 re: clean all
 
-.PHONY: all test clean re
+.PHONY: all test clean fclean re

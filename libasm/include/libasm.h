@@ -1,6 +1,7 @@
 #ifndef LIBASM_H
 #define LIBASM_H
 
-int ft_sum(int a, int b);
+size_t ft_strlen(const char *s);
+char *ft_strcpy(char *restrict dst, const char *restrict src);
 
 #endif
