@@ -70,6 +70,29 @@ static void	run_strcpy_test(const char *label, const char *src)
 	(void)ret_ref;
 }
 
+static void	run_strcmp_test(const char *label, const char *s1, const char *s2)
+{
+	int	ref;
+	int	ft;
+	int	pass;
+
+	ref = strcmp(s1, s2);
+	ft  = ft_strcmp(s1, s2);
+
+	/* strcmp chỉ đảm bảo dấu của kết quả */
+	pass = ((ref == 0 && ft == 0)
+		|| (ref < 0 && ft < 0)
+		|| (ref > 0 && ft > 0));
+
+	printf("%-35s │ ref=%-4d │ ft=%-4d │ %s%s%s\n",
+		label,
+		ref,
+		ft,
+		pass ? COLOR_GREEN : COLOR_RED,
+		pass ? "PASS" : "FAIL",
+		COLOR_RESET);
+}
+
 int	main(void)
 {
 	printf("\n=== ft_strlen vs strlen ===\n\n");
@@ -143,6 +166,37 @@ int	main(void)
 			pass ? "PASS" : "FAIL",
 			COLOR_RESET);
 	}
+
+	/* ─── ft_strcmp vs strcmp ─────────────────────────────────────────────── */
+printf("\n=== ft_strcmp vs strcmp ===\n\n");
+printf("%-35s │ %-8s │ %-8s │ %s\n",
+	"Test case", "strcmp", "ft_strcmp", "Result");
+printf("%.35s─┼─%.8s─┼─%.8s─┼─%.6s\n",
+	"───────────────────────────────────",
+	"────────", "────────", "──────");
+
+/* Chuỗi giống nhau */
+run_strcmp_test("Both empty",                "", "");
+run_strcmp_test("Same string",               "Hello", "Hello");
+run_strcmp_test("Same with spaces",          "42 School", "42 School");
+
+/* Khác nhau */
+run_strcmp_test("First < second",            "abc", "abd");
+run_strcmp_test("First > second",            "abd", "abc");
+run_strcmp_test("Prefix vs longer",          "abc", "abcd");
+run_strcmp_test("Longer vs prefix",          "abcd", "abc");
+
+/* Ký tự đặc biệt */
+run_strcmp_test("Numbers",                   "123", "124");
+run_strcmp_test("Special chars",             "\n\t", "\n");
+run_strcmp_test("Non-ASCII",                 "é", "ê");
+
+/* Khác ở ký tự cuối */
+run_strcmp_test("Diff at last char",         "testA", "testB");
+
+/* Empty vs non-empty */
+run_strcmp_test("Empty vs non-empty",        "", "a");
+run_strcmp_test("Non-empty vs empty",        "a", "");
 
 	printf("\n");
 	return (0);
