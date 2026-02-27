@@ -1,5 +1,10 @@
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <sys/stat.h>
 #include "include/libasm.h"
  #define COLOR_GREEN "\033[0;32m"
 #define COLOR_RED   "\033[0;31m"
@@ -91,6 +96,284 @@ static void	run_strcmp_test(const char *label, const char *s1, const char *s2)
 		pass ? COLOR_GREEN : COLOR_RED,
 		pass ? "PASS" : "FAIL",
 		COLOR_RESET);
+}
+
+static int g_pass = 0;
+static int g_fail = 0;
+
+static void print_result(const char *test_name, int passed)
+{
+    if (passed)
+    {
+        printf("  [PASS] %s\n", test_name);
+        g_pass++;
+    }
+    else
+    {
+        printf("  [FAIL] %s\n", test_name);
+        g_fail++;
+    }
+}
+
+/*
+** So sánh:
+**   - return value của ft_write vs write
+**   - errno sau khi gọi (chỉ khi cả hai đều thất bại)
+*/
+static void compare(const char *test_name,
+                    ssize_t ret_ft, int errno_ft,
+                    ssize_t ret_sys, int errno_sys)
+{
+    int ret_ok   = (ret_ft == ret_sys);
+    int errno_ok = 1;
+
+    /* Chỉ kiểm errno khi cả hai báo lỗi */
+    if (ret_sys < 0 && ret_ft < 0)
+        errno_ok = (errno_ft == errno_sys);
+
+    if (ret_ok && errno_ok)
+        print_result(test_name, 1);
+    else
+    {
+        print_result(test_name, 0);
+        if (!ret_ok)
+            printf("         ret   ft_write=%zd  write=%zd\n", ret_ft, ret_sys);
+        if (!errno_ok)
+            printf("         errno ft_write=%d (%s)  write=%d (%s)\n",
+                   errno_ft, strerror(errno_ft),
+                   errno_sys, strerror(errno_sys));
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Tests                                                               */
+/* ------------------------------------------------------------------ */
+
+/* 1. Ghi chuỗi bình thường ra stdout */
+static void test_normal_stdout(void)
+{
+    printf("\n[1] Ghi chuỗi ra stdout:\n");
+
+    const char *msg = "ft_write: Hello, World!\n";
+    ssize_t r_ft, r_sys;
+    int e_ft, e_sys;
+
+    errno = 0;
+    r_ft  = ft_write(STDOUT_FILENO, msg, strlen(msg));
+    e_ft  = errno;
+
+    errno = 0;
+    r_sys = write(STDOUT_FILENO, msg, strlen(msg));
+    e_sys = errno;
+
+    compare("write to stdout (return value)", r_ft, e_ft, r_sys, e_sys);
+}
+
+/* 2. Ghi 0 byte (count = 0) */
+static void test_zero_bytes(void)
+{
+    printf("\n[2] Ghi 0 byte (count = 0):\n");
+
+    const char *buf = "anything";
+    ssize_t r_ft, r_sys;
+    int e_ft, e_sys;
+
+    errno = 0;
+    r_ft  = ft_write(STDOUT_FILENO, buf, 0);
+    e_ft  = errno;
+
+    errno = 0;
+    r_sys = write(STDOUT_FILENO, buf, 0);
+    e_sys = errno;
+
+    compare("write 0 bytes", r_ft, e_ft, r_sys, e_sys);
+}
+
+/* 3. Ghi vào file descriptor hợp lệ (file tạm) */
+static void test_write_to_file(void)
+{
+    printf("\n[3] Ghi vào file tạm:\n");
+
+    const char *path_ft  = "/tmp/ft_write_test_ft.txt";
+    const char *path_sys = "/tmp/ft_write_test_sys.txt";
+    const char *data     = "test data 123\n";
+
+    int fd_ft  = open(path_ft,  O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int fd_sys = open(path_sys, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+    if (fd_ft < 0 || fd_sys < 0)
+    {
+        printf("  [SKIP] Không mở được file tạm\n");
+        if (fd_ft  >= 0) close(fd_ft);
+        if (fd_sys >= 0) close(fd_sys);
+        return;
+    }
+
+    ssize_t r_ft, r_sys;
+    int e_ft, e_sys;
+
+    errno = 0;
+    r_ft  = ft_write(fd_ft, data, strlen(data));
+    e_ft  = errno;
+
+    errno = 0;
+    r_sys = write(fd_sys, data, strlen(data));
+    e_sys = errno;
+
+    close(fd_ft);
+    close(fd_sys);
+
+    compare("write to file (return value)", r_ft, e_ft, r_sys, e_sys);
+
+    /* Kiểm tra nội dung file giống nhau */
+    char buf_ft[64]  = {0};
+    char buf_sys[64] = {0};
+
+    fd_ft  = open(path_ft,  O_RDONLY);
+    fd_sys = open(path_sys, O_RDONLY);
+    read(fd_ft,  buf_ft,  sizeof(buf_ft)  - 1);
+    read(fd_sys, buf_sys, sizeof(buf_sys) - 1);
+    close(fd_ft);
+    close(fd_sys);
+
+    print_result("write to file (content match)", strcmp(buf_ft, buf_sys) == 0);
+
+    unlink(path_ft);
+    unlink(path_sys);
+}
+
+/* 4. Ghi vào stderr */
+static void test_write_stderr(void)
+{
+    printf("\n[4] Ghi vào stderr:\n");
+
+    const char *msg = "stderr test\n";
+    ssize_t r_ft, r_sys;
+    int e_ft, e_sys;
+
+    errno = 0;
+    r_ft  = ft_write(STDERR_FILENO, msg, strlen(msg));
+    e_ft  = errno;
+
+    errno = 0;
+    r_sys = write(STDERR_FILENO, msg, strlen(msg));
+    e_sys = errno;
+
+    compare("write to stderr", r_ft, e_ft, r_sys, e_sys);
+}
+
+/* 5. fd không hợp lệ — kỳ vọng: trả về -1, errno = EBADF */
+static void test_invalid_fd(void)
+{
+    printf("\n[5] fd không hợp lệ (fd = -1):\n");
+
+    const char *buf = "data";
+    ssize_t r_ft, r_sys;
+    int e_ft, e_sys;
+
+    errno = 0;
+    r_ft  = ft_write(-1, buf, strlen(buf));
+    e_ft  = errno;
+
+    errno = 0;
+    r_sys = write(-1, buf, strlen(buf));
+    e_sys = errno;
+
+    compare("invalid fd returns -1",      r_ft  == -1,    0, r_sys  == -1,    0);
+    compare("invalid fd errno == EBADF",  e_ft == EBADF,  0, e_sys == EBADF,  0);
+    compare("ft_write errno == write errno", r_ft, e_ft, r_sys, e_sys);
+}
+
+/* 6. fd là read-only — kỳ vọng: trả về -1, errno = EBADF */
+static void test_readonly_fd(void)
+{
+    printf("\n[6] fd read-only:\n");
+
+    const char *path = "/tmp/ft_write_readonly.txt";
+    /* Tạo file trước */
+    int tmp = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (tmp >= 0) { write(tmp, "x", 1); close(tmp); }
+
+    int fd_ft  = open(path, O_RDONLY);
+    int fd_sys = open(path, O_RDONLY);
+
+    if (fd_ft < 0 || fd_sys < 0)
+    {
+        printf("  [SKIP] Không mở được file read-only\n");
+        if (fd_ft  >= 0) close(fd_ft);
+        if (fd_sys >= 0) close(fd_sys);
+        unlink(path);
+        return;
+    }
+
+    const char *buf = "data";
+    ssize_t r_ft, r_sys;
+    int e_ft, e_sys;
+
+    errno = 0;
+    r_ft  = ft_write(fd_ft,  buf, strlen(buf));
+    e_ft  = errno;
+
+    errno = 0;
+    r_sys = write(fd_sys, buf, strlen(buf));
+    e_sys = errno;
+
+    close(fd_ft);
+    close(fd_sys);
+    unlink(path);
+
+    compare("read-only fd", r_ft, e_ft, r_sys, e_sys);
+}
+
+/* 7. buf = NULL — kỳ vọng: trả về -1, errno = EFAULT */
+// static void test_null_buf(void)
+// {
+//     printf("\n[7] buf = NULL:\n");
+
+//     ssize_t r_ft, r_sys;
+//     int e_ft, e_sys;
+
+//     errno = 0;
+//     r_ft  = ft_write(STDOUT_FILENO, NULL, 1);
+//     e_ft  = errno;
+
+//     errno = 0;
+//     r_sys = write(STDOUT_FILENO, NULL, 1);
+//     e_sys = errno;
+
+//     compare("NULL buf", r_ft, e_ft, r_sys, e_sys);
+// }
+
+/* 8. fd đã đóng — kỳ vọng: EBADF */
+static void test_closed_fd(void)
+{
+    printf("\n[8] fd đã đóng:\n");
+
+    const char *path = "/tmp/ft_write_closed.txt";
+
+    int fd_ft  = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int fd_sys = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+    /* Lưu fd rồi đóng ngay */
+    int raw_ft  = fd_ft;
+    int raw_sys = fd_sys;
+    close(fd_ft);
+    close(fd_sys);
+    unlink(path);
+
+    const char *buf = "data";
+    ssize_t r_ft, r_sys;
+    int e_ft, e_sys;
+
+    errno = 0;
+    r_ft  = ft_write(raw_ft, buf, strlen(buf));
+    e_ft  = errno;
+
+    errno = 0;
+    r_sys = write(raw_sys, buf, strlen(buf));
+    e_sys = errno;
+
+    compare("closed fd", r_ft, e_ft, r_sys, e_sys);
 }
 
 int	main(void)
@@ -199,5 +482,21 @@ run_strcmp_test("Empty vs non-empty",        "", "a");
 run_strcmp_test("Non-empty vs empty",        "a", "");
 
 	printf("\n");
-	return (0);
+ printf("=== ft_write test suite ===\n");
+    printf("Kiểm tra ft_write vs write (man 2 write)\n");
+
+    test_normal_stdout();
+    test_zero_bytes();
+    test_write_to_file();
+    test_write_stderr();
+    test_invalid_fd();
+    test_readonly_fd();
+    // test_null_buf();
+    test_closed_fd();
+
+    printf("\n===========================\n");
+    printf("Kết quả: %d passed, %d failed\n", g_pass, g_fail);
+    printf("===========================\n");
+
+    return (g_fail > 0 ? EXIT_FAILURE : EXIT_SUCCESS);
 }
