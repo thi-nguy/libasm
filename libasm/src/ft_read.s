@@ -1,15 +1,15 @@
 section .text
-    extern __errno_location 
-    global ft_write
-    
-ft_write:
+    extern __errno_location
+    global ft_read
+
+ft_read:
     push rbx
 
-    mov rax, 1
+    mov rax, 0
     syscall
 
     test rax, rax
-    jns .write_ok
+    jns .read_ok
 
     neg rax
     mov ebx, eax
@@ -19,7 +19,7 @@ ft_write:
     mov rax, -1
     ret
 
-.write_ok:
+.read_ok:
     pop rbx
     ret
 

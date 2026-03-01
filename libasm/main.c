@@ -1,502 +1,310 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*   main.c - Test suite for libasm                                           */
+/*   Tests: ft_read, ft_write, ft_strcmp, ft_strdup, ft_strcpy, ft_strlen     */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include "include/libasm.h"
- #define COLOR_GREEN "\033[0;32m"
-#define COLOR_RED   "\033[0;31m"
-#define COLOR_RESET "\033[0m"
+#include "libasm.h"
 
-static void	run_test(const char *label, const char *input)
-{
-	size_t	expected;
-	size_t	got;
-	int		pass;
+/* ─── Color codes ─────────────────────────────────────────────────────────── */
+#define GREEN   "\033[0;32m"
+#define RED     "\033[0;31m"
+#define YELLOW  "\033[0;33m"
+#define CYAN    "\033[0;36m"
+#define BOLD    "\033[1m"
+#define RESET   "\033[0m"
 
-	/* NULL guard: strlen(NULL) is UB, chỉ test ft_strlen */
-	if (input == NULL)
-	{
-		got = ft_strlen(NULL);
-		printf("%-35s │ ft_strlen(NULL) = %zu\n", label, got);
-		return ;
-	}
-
-	expected = strlen(input);
-	got      = ft_strlen(input);
-	pass     = (expected == got);
-
-	printf("%-35s │ strlen=%-5zu │ ft_strlen=%-5zu │ %s%s%s\n",
-		label,
-		expected,
-		got,
-		pass ? COLOR_GREEN : COLOR_RED,
-		pass ? "PASS" : "FAIL",
-		COLOR_RESET);
-}
-
-static void	run_strcpy_test(const char *label, const char *src)
-{
-	char	buf_ref[512];
-	char	buf_ft[512];
-	char	*ret_ref;
-	char	*ret_ft;
-	int		content_ok;
-	int		return_ok;
-	int		pass;
-
-	/* Dùng strcpy làm chuẩn */
-	ret_ref = strcpy(buf_ref, src);
-	ret_ft  = ft_strcpy(buf_ft, src);
-
-	/* Kiểm tra nội dung chuỗi sau copy */
-	content_ok = (strcmp(buf_ref, buf_ft) == 0);
-
-	/* Kiểm tra return value phải trỏ về dst */
-	return_ok  = (ret_ft == buf_ft);
-
-	pass = content_ok && return_ok;
-
-	printf("%-35s │ ref=\"%-10s\" │ ft=\"%-10s\" │ %s%s%s\n",
-		label,
-		buf_ref,
-		buf_ft,
-		pass ? COLOR_GREEN : COLOR_RED,
-		pass ? "PASS" : "FAIL",
-		COLOR_RESET);
-
-	/* In chi tiết khi fail */
-	if (!content_ok)
-		printf("  %s[FAIL] Content mismatch%s\n", COLOR_RED, COLOR_RESET);
-	if (!return_ok)
-		printf("  %s[FAIL] Return value != dst%s\n", COLOR_RED, COLOR_RESET);
-	(void)ret_ref;
-}
-
-static void	run_strcmp_test(const char *label, const char *s1, const char *s2)
-{
-	int	ref;
-	int	ft;
-	int	pass;
-
-	ref = strcmp(s1, s2);
-	ft  = ft_strcmp(s1, s2);
-
-	/* strcmp chỉ đảm bảo dấu của kết quả */
-	pass = ((ref == 0 && ft == 0)
-		|| (ref < 0 && ft < 0)
-		|| (ref > 0 && ft > 0));
-
-	printf("%-35s │ ref=%-4d │ ft=%-4d │ %s%s%s\n",
-		label,
-		ref,
-		ft,
-		pass ? COLOR_GREEN : COLOR_RED,
-		pass ? "PASS" : "FAIL",
-		COLOR_RESET);
-}
+/* ─── Helper macros ───────────────────────────────────────────────────────── */
+#define PASS(label) printf(GREEN "  [PASS]" RESET " %s\n", label)
+#define FAIL(label) printf(RED   "  [FAIL]" RESET " %s\n", label)
+#define SECTION(name) printf("\n" BOLD CYAN "══ %s ══\n" RESET, name)
+#define CHECK(cond, label) do { if (cond) PASS(label); else FAIL(label); } while (0)
 
 static int g_pass = 0;
 static int g_fail = 0;
 
-static void print_result(const char *test_name, int passed)
+#define ASSERT(cond, label) \
+    do { \
+        if (cond) { PASS(label); g_pass++; } \
+        else      { FAIL(label); g_fail++; } \
+    } while (0)
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  ft_strlen                                                                 */
+/* ══════════════════════════════════════════════════════════════════════════ */
+static void test_strlen(void)
 {
-    if (passed)
+    SECTION("ft_strlen");
+
+    /* Basic strings */
+    ASSERT(ft_strlen("hello") == strlen("hello"),           "strlen: \"hello\"");
+    ASSERT(ft_strlen("") == strlen(""),                     "strlen: empty string");
+    ASSERT(ft_strlen("a") == strlen("a"),                   "strlen: single char");
+    ASSERT(ft_strlen("Hello, World!") == strlen("Hello, World!"),
+                                                            "strlen: sentence");
+    /* String with spaces */
+    ASSERT(ft_strlen("  spaces  ") == strlen("  spaces  "), "strlen: spaces");
+    /* String with special chars */
+    ASSERT(ft_strlen("abc\tdef\n") == strlen("abc\tdef\n"), "strlen: \\t \\n");
+    /* Long string */
+    char longstr[1024];
+    memset(longstr, 'A', 1023);
+    longstr[1023] = '\0';
+    ASSERT(ft_strlen(longstr) == strlen(longstr),           "strlen: 1023-char string");
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  ft_strcpy                                                                 */
+/* ══════════════════════════════════════════════════════════════════════════ */
+static void test_strcpy(void)
+{
+    SECTION("ft_strcpy");
+
+    char dst1[64], dst2[64];
+
+    /* Basic copy */
+    strcpy(dst2, "hello");
+    ft_strcpy(dst1, "hello");
+    ASSERT(strcmp(dst1, dst2) == 0, "strcpy: basic \"hello\"");
+
+    /* Empty string */
+    strcpy(dst2, "");
+    ft_strcpy(dst1, "");
+    ASSERT(strcmp(dst1, dst2) == 0, "strcpy: empty string");
+
+    /* Single char */
+    strcpy(dst2, "x");
+    ft_strcpy(dst1, "x");
+    ASSERT(strcmp(dst1, dst2) == 0, "strcpy: single char");
+
+    /* Return value == dst */
+    char *ret = ft_strcpy(dst1, "retval");
+    ASSERT(ret == dst1, "strcpy: return value == dst pointer");
+
+    /* String with special chars */
+    strcpy(dst2, "line1\nline2\ttab");
+    ft_strcpy(dst1, "line1\nline2\ttab");
+    ASSERT(strcmp(dst1, dst2) == 0, "strcpy: \\n and \\t");
+
+    /* Null terminator placed correctly */
+    memset(dst1, 0xFF, sizeof(dst1));
+    ft_strcpy(dst1, "end");
+    ASSERT(dst1[3] == '\0', "strcpy: null terminator at correct position");
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  ft_strcmp                                                                 */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+/* Normalise to -1 / 0 / 1 so we compare sign, not raw value */
+static int sign(int n) { return (n > 0) - (n < 0); }
+
+static void test_strcmp(void)
+{
+    SECTION("ft_strcmp");
+
+    /* Equal strings */
+    ASSERT(sign(ft_strcmp("abc", "abc")) == sign(strcmp("abc", "abc")),
+           "strcmp: equal strings \"abc\"");
+    ASSERT(sign(ft_strcmp("", "")) == sign(strcmp("", "")),
+           "strcmp: both empty");
+
+    /* First < second */
+    ASSERT(sign(ft_strcmp("abc", "abd")) == sign(strcmp("abc", "abd")),
+           "strcmp: \"abc\" < \"abd\"");
+    ASSERT(sign(ft_strcmp("", "a")) == sign(strcmp("", "a")),
+           "strcmp: \"\" < \"a\"");
+    ASSERT(sign(ft_strcmp("abc", "abcd")) == sign(strcmp("abc", "abcd")),
+           "strcmp: prefix shorter");
+
+    /* First > second */
+    ASSERT(sign(ft_strcmp("abd", "abc")) == sign(strcmp("abd", "abc")),
+           "strcmp: \"abd\" > \"abc\"");
+    ASSERT(sign(ft_strcmp("a", "")) == sign(strcmp("a", "")),
+           "strcmp: \"a\" > \"\"");
+    ASSERT(sign(ft_strcmp("abcd", "abc")) == sign(strcmp("abcd", "abc")),
+           "strcmp: prefix longer");
+
+    /* Case sensitivity */
+    ASSERT(sign(ft_strcmp("ABC", "abc")) == sign(strcmp("ABC", "abc")),
+           "strcmp: case sensitive \"ABC\" vs \"abc\"");
+    ASSERT(sign(ft_strcmp("abc", "ABC")) == sign(strcmp("abc", "ABC")),
+           "strcmp: case sensitive \"abc\" vs \"ABC\"");
+
+    /* High ASCII / unsigned comparison */
+    ASSERT(sign(ft_strcmp("\x80", "\x01")) == sign(strcmp("\x80", "\x01")),
+           "strcmp: high-ASCII unsigned comparison");
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  ft_strdup                                                                 */
+/* ══════════════════════════════════════════════════════════════════════════ */
+static void test_strdup(void)
+{
+    SECTION("ft_strdup");
+
+    char *dup;
+
+    /* Basic dup */
+    dup = ft_strdup("hello");
+    ASSERT(dup != NULL,                 "strdup: \"hello\" not NULL");
+    ASSERT(strcmp(dup, "hello") == 0,   "strdup: \"hello\" content match");
+    free(dup);
+
+    /* Empty string */
+    dup = ft_strdup("");
+    ASSERT(dup != NULL,                 "strdup: \"\" not NULL");
+    ASSERT(strcmp(dup, "") == 0,        "strdup: \"\" content match");
+    free(dup);
+
+    /* Pointer differs from original */
+    const char *orig = "separate";
+    dup = ft_strdup(orig);
+    ASSERT(dup != orig,                 "strdup: new allocation (pointer differs)");
+    ASSERT(strcmp(dup, orig) == 0,      "strdup: content matches original");
+    free(dup);
+
+    /* Long string */
+    char longstr[1024];
+    memset(longstr, 'Z', 1023);
+    longstr[1023] = '\0';
+    dup = ft_strdup(longstr);
+    ASSERT(dup != NULL,                 "strdup: long string not NULL");
+    ASSERT(strcmp(dup, longstr) == 0,   "strdup: long string content match");
+    free(dup);
+
+    /* String with special chars */
+    dup = ft_strdup("line\nnewline\ttab");
+    ASSERT(dup && strcmp(dup, "line\nnewline\ttab") == 0,
+                                        "strdup: \\n and \\t");
+    free(dup);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  ft_write  (man 2 write)                                                   */
+/* ══════════════════════════════════════════════════════════════════════════ */
+static void test_write(void)
+{
+    SECTION("ft_write");
+
+    /* ── stdout ── */
+    printf("  [INFO] ft_write to stdout (fd=1): ");
+    fflush(stdout);
+    ssize_t ret = ft_write(1, "ft_write OK\n", 12);
+    ASSERT(ret == 12, "write: return value == nbytes on stdout");
+
+    /* ── write 0 bytes ── */
+    ret = ft_write(1, "should not appear", 0);
+    ASSERT(ret == 0, "write: 0 bytes returns 0");
+
+    /* ── write to a temp file ── */
+    int fd = open("/tmp/libasm_write_test.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    ASSERT(fd >= 0, "write: open temp file");
+    if (fd >= 0)
     {
-        printf("  [PASS] %s\n", test_name);
-        g_pass++;
-    }
-    else
-    {
-        printf("  [FAIL] %s\n", test_name);
-        g_fail++;
-    }
-}
+        ret = ft_write(fd, "LIBASM_TEST\n", 12);
+        ASSERT(ret == 12, "write: 12 bytes to file");
+        close(fd);
 
-/*
-** So sánh:
-**   - return value của ft_write vs write
-**   - errno sau khi gọi (chỉ khi cả hai đều thất bại)
-*/
-static void compare(const char *test_name,
-                    ssize_t ret_ft, int errno_ft,
-                    ssize_t ret_sys, int errno_sys)
-{
-    int ret_ok   = (ret_ft == ret_sys);
-    int errno_ok = 1;
-
-    /* Chỉ kiểm errno khi cả hai báo lỗi */
-    if (ret_sys < 0 && ret_ft < 0)
-        errno_ok = (errno_ft == errno_sys);
-
-    if (ret_ok && errno_ok)
-        print_result(test_name, 1);
-    else
-    {
-        print_result(test_name, 0);
-        if (!ret_ok)
-            printf("         ret   ft_write=%zd  write=%zd\n", ret_ft, ret_sys);
-        if (!errno_ok)
-            printf("         errno ft_write=%d (%s)  write=%d (%s)\n",
-                   errno_ft, strerror(errno_ft),
-                   errno_sys, strerror(errno_sys));
-    }
-}
-
-/* ------------------------------------------------------------------ */
-/*  Tests                                                               */
-/* ------------------------------------------------------------------ */
-
-/* 1. Ghi chuỗi bình thường ra stdout */
-static void test_normal_stdout(void)
-{
-    printf("\n[1] Ghi chuỗi ra stdout:\n");
-
-    const char *msg = "ft_write: Hello, World!\n";
-    ssize_t r_ft, r_sys;
-    int e_ft, e_sys;
-
-    errno = 0;
-    r_ft  = ft_write(STDOUT_FILENO, msg, strlen(msg));
-    e_ft  = errno;
-
-    errno = 0;
-    r_sys = write(STDOUT_FILENO, msg, strlen(msg));
-    e_sys = errno;
-
-    compare("write to stdout (return value)", r_ft, e_ft, r_sys, e_sys);
-}
-
-/* 2. Ghi 0 byte (count = 0) */
-static void test_zero_bytes(void)
-{
-    printf("\n[2] Ghi 0 byte (count = 0):\n");
-
-    const char *buf = "anything";
-    ssize_t r_ft, r_sys;
-    int e_ft, e_sys;
-
-    errno = 0;
-    r_ft  = ft_write(STDOUT_FILENO, buf, 0);
-    e_ft  = errno;
-
-    errno = 0;
-    r_sys = write(STDOUT_FILENO, buf, 0);
-    e_sys = errno;
-
-    compare("write 0 bytes", r_ft, e_ft, r_sys, e_sys);
-}
-
-/* 3. Ghi vào file descriptor hợp lệ (file tạm) */
-static void test_write_to_file(void)
-{
-    printf("\n[3] Ghi vào file tạm:\n");
-
-    const char *path_ft  = "/tmp/ft_write_test_ft.txt";
-    const char *path_sys = "/tmp/ft_write_test_sys.txt";
-    const char *data     = "test data 123\n";
-
-    int fd_ft  = open(path_ft,  O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    int fd_sys = open(path_sys, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-
-    if (fd_ft < 0 || fd_sys < 0)
-    {
-        printf("  [SKIP] Không mở được file tạm\n");
-        if (fd_ft  >= 0) close(fd_ft);
-        if (fd_sys >= 0) close(fd_sys);
-        return;
-    }
-
-    ssize_t r_ft, r_sys;
-    int e_ft, e_sys;
-
-    errno = 0;
-    r_ft  = ft_write(fd_ft, data, strlen(data));
-    e_ft  = errno;
-
-    errno = 0;
-    r_sys = write(fd_sys, data, strlen(data));
-    e_sys = errno;
-
-    close(fd_ft);
-    close(fd_sys);
-
-    compare("write to file (return value)", r_ft, e_ft, r_sys, e_sys);
-
-    /* Kiểm tra nội dung file giống nhau */
-    char buf_ft[64]  = {0};
-    char buf_sys[64] = {0};
-
-    fd_ft  = open(path_ft,  O_RDONLY);
-    fd_sys = open(path_sys, O_RDONLY);
-    read(fd_ft,  buf_ft,  sizeof(buf_ft)  - 1);
-    read(fd_sys, buf_sys, sizeof(buf_sys) - 1);
-    close(fd_ft);
-    close(fd_sys);
-
-    print_result("write to file (content match)", strcmp(buf_ft, buf_sys) == 0);
-
-    unlink(path_ft);
-    unlink(path_sys);
-}
-
-/* 4. Ghi vào stderr */
-static void test_write_stderr(void)
-{
-    printf("\n[4] Ghi vào stderr:\n");
-
-    const char *msg = "stderr test\n";
-    ssize_t r_ft, r_sys;
-    int e_ft, e_sys;
-
-    errno = 0;
-    r_ft  = ft_write(STDERR_FILENO, msg, strlen(msg));
-    e_ft  = errno;
-
-    errno = 0;
-    r_sys = write(STDERR_FILENO, msg, strlen(msg));
-    e_sys = errno;
-
-    compare("write to stderr", r_ft, e_ft, r_sys, e_sys);
-}
-
-/* 5. fd không hợp lệ — kỳ vọng: trả về -1, errno = EBADF */
-static void test_invalid_fd(void)
-{
-    printf("\n[5] fd không hợp lệ (fd = -1):\n");
-
-    const char *buf = "data";
-    ssize_t r_ft, r_sys;
-    int e_ft, e_sys;
-
-    errno = 0;
-    r_ft  = ft_write(-1, buf, strlen(buf));
-    e_ft  = errno;
-
-    errno = 0;
-    r_sys = write(-1, buf, strlen(buf));
-    e_sys = errno;
-
-    compare("invalid fd returns -1",      r_ft  == -1,    0, r_sys  == -1,    0);
-    compare("invalid fd errno == EBADF",  e_ft == EBADF,  0, e_sys == EBADF,  0);
-    compare("ft_write errno == write errno", r_ft, e_ft, r_sys, e_sys);
-}
-
-/* 6. fd là read-only — kỳ vọng: trả về -1, errno = EBADF */
-static void test_readonly_fd(void)
-{
-    printf("\n[6] fd read-only:\n");
-
-    const char *path = "/tmp/ft_write_readonly.txt";
-    /* Tạo file trước */
-    int tmp = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (tmp >= 0) { write(tmp, "x", 1); close(tmp); }
-
-    int fd_ft  = open(path, O_RDONLY);
-    int fd_sys = open(path, O_RDONLY);
-
-    if (fd_ft < 0 || fd_sys < 0)
-    {
-        printf("  [SKIP] Không mở được file read-only\n");
-        if (fd_ft  >= 0) close(fd_ft);
-        if (fd_sys >= 0) close(fd_sys);
-        unlink(path);
-        return;
+        /* Verify content */
+        fd = open("/tmp/libasm_write_test.txt", O_RDONLY);
+        char buf[32] = {0};
+        read(fd, buf, 31);
+        close(fd);
+        ASSERT(strcmp(buf, "LIBASM_TEST\n") == 0, "write: file content matches");
+        unlink("/tmp/libasm_write_test.txt");
     }
 
-    const char *buf = "data";
-    ssize_t r_ft, r_sys;
-    int e_ft, e_sys;
-
+    /* ── invalid fd → errno ── */
     errno = 0;
-    r_ft  = ft_write(fd_ft,  buf, strlen(buf));
-    e_ft  = errno;
+    ret = ft_write(-1, "bad fd", 6);
+    ASSERT(ret == -1,       "write: invalid fd returns -1");
+    ASSERT(errno == EBADF,  "write: invalid fd sets errno=EBADF");
+}
 
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  ft_read  (man 2 read)                                                     */
+/* ══════════════════════════════════════════════════════════════════════════ */
+static void test_read(void)
+{
+    SECTION("ft_read");
+
+    /* ── prepare a temp file ── */
+    const char *path = "/tmp/libasm_read_test.txt";
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    ASSERT(fd >= 0, "read: create temp file");
+    if (fd < 0) return;
+    write(fd, "HelloWorld", 10);
+    close(fd);
+
+    /* ── normal read ── */
+    fd = open(path, O_RDONLY);
+    char buf[32] = {0};
+    ssize_t ret = ft_read(fd, buf, 5);
+    ASSERT(ret == 5,                    "read: returns nbytes read (5)");
+    ASSERT(memcmp(buf, "Hello", 5) == 0,"read: content matches first 5 bytes");
+
+    /* ── partial / continuing read ── */
+    memset(buf, 0, sizeof(buf));
+    ret = ft_read(fd, buf, 5);
+    ASSERT(ret == 5,                    "read: second read returns 5");
+    ASSERT(memcmp(buf, "World", 5) == 0,"read: second read content matches");
+
+    /* ── EOF ── */
+    ret = ft_read(fd, buf, 10);
+    ASSERT(ret == 0,                    "read: EOF returns 0");
+    close(fd);
+
+    /* ── read 0 bytes ── */
+    fd = open(path, O_RDONLY);
+    ret = ft_read(fd, buf, 0);
+    ASSERT(ret == 0,                    "read: 0 bytes returns 0");
+    close(fd);
+
+    /* ── invalid fd → errno ── */
     errno = 0;
-    r_sys = write(fd_sys, buf, strlen(buf));
-    e_sys = errno;
+    ret = ft_read(-1, buf, 10);
+    ASSERT(ret == -1,       "read: invalid fd returns -1");
+    ASSERT(errno == EBADF,  "read: invalid fd sets errno=EBADF");
 
-    close(fd_ft);
-    close(fd_sys);
     unlink(path);
-
-    compare("read-only fd", r_ft, e_ft, r_sys, e_sys);
 }
 
-/* 7. buf = NULL — kỳ vọng: trả về -1, errno = EFAULT */
-// static void test_null_buf(void)
-// {
-//     printf("\n[7] buf = NULL:\n");
-
-//     ssize_t r_ft, r_sys;
-//     int e_ft, e_sys;
-
-//     errno = 0;
-//     r_ft  = ft_write(STDOUT_FILENO, NULL, 1);
-//     e_ft  = errno;
-
-//     errno = 0;
-//     r_sys = write(STDOUT_FILENO, NULL, 1);
-//     e_sys = errno;
-
-//     compare("NULL buf", r_ft, e_ft, r_sys, e_sys);
-// }
-
-/* 8. fd đã đóng — kỳ vọng: EBADF */
-static void test_closed_fd(void)
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  Summary                                                                   */
+/* ══════════════════════════════════════════════════════════════════════════ */
+static void summary(void)
 {
-    printf("\n[8] fd đã đóng:\n");
-
-    const char *path = "/tmp/ft_write_closed.txt";
-
-    int fd_ft  = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    int fd_sys = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-
-    /* Lưu fd rồi đóng ngay */
-    int raw_ft  = fd_ft;
-    int raw_sys = fd_sys;
-    close(fd_ft);
-    close(fd_sys);
-    unlink(path);
-
-    const char *buf = "data";
-    ssize_t r_ft, r_sys;
-    int e_ft, e_sys;
-
-    errno = 0;
-    r_ft  = ft_write(raw_ft, buf, strlen(buf));
-    e_ft  = errno;
-
-    errno = 0;
-    r_sys = write(raw_sys, buf, strlen(buf));
-    e_sys = errno;
-
-    compare("closed fd", r_ft, e_ft, r_sys, e_sys);
+    int total = g_pass + g_fail;
+    printf("\n" BOLD "══ SUMMARY ══\n" RESET);
+    printf(GREEN "  Passed : %d / %d\n" RESET, g_pass, total);
+    if (g_fail)
+        printf(RED "  Failed : %d / %d\n" RESET, g_fail, total);
+    else
+        printf(GREEN "  All tests passed!\n" RESET);
 }
 
-int	main(void)
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  main                                                                      */
+/* ══════════════════════════════════════════════════════════════════════════ */
+int main(void)
 {
-	printf("\n=== ft_strlen vs strlen ===\n\n");
-	printf("%-35s │ %-12s │ %-15s │ %s\n",
-		"Test case", "strlen", "ft_strlen", "Result");
-	printf("%.35s─┼─%.12s─┼─%.15s─┼─%.6s\n",
-		"───────────────────────────────────",
-		"────────────", "───────────────", "──────");
+    printf(BOLD "\n=== libasm Test Suite ===\n" RESET);
 
-	/* Chuỗi thông thường */
-	run_test("Empty string \"\"",           "");
-	run_test("Single char \"a\"",           "a");
-	run_test("\"Hello, World!\"",           "Hello, World!");
-	run_test("\"42 School\"",               "42 School");
-	run_test("Spaces only \"   \"",         "   ");
+    test_strlen();
+    test_strcpy();
+    test_strcmp();
+    test_strdup();
+    test_write();
+    test_read();
 
-	/* Chuỗi dài */
-	run_test("100 'x' chars",
-		"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-		"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-		"xxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-
-	/* Ký tự đặc biệt */
-	run_test("Newline/tab \"\\n\\t\\r\"",   "\n\t\r");
-	run_test("Non-ASCII \"é à ü\"",         "é à ü");
-	run_test("Numbers \"1234567890\"",       "1234567890");
-	run_test("Null byte early \"ab\\0cd\"",  "ab"); /* strlen dừng ở \\0 */
-
-	/* NULL pointer — chỉ ft_strlen, bỏ comment nếu bạn xử lý NULL */
-	/* run_test("NULL pointer",              NULL); */
-
-	/* ─── ft_strcpy vs strcpy ─────────────────────────────────────────────── */
-	printf("\n=== ft_strcpy vs strcpy ===\n\n");
-	printf("%-35s │ %-16s │ %-16s │ %s\n",
-		"Test case", "ref (strcpy)", "ft (ft_strcpy)", "Result");
-	printf("%.35s─┼─%.16s─┼─%.16s─┼─%.6s\n",
-		"───────────────────────────────────",
-		"────────────────", "────────────────", "──────");
-
-	/* Chuỗi thông thường */
-	run_strcpy_test("Empty string \"\"",         "");
-	run_strcpy_test("Single char \"a\"",         "a");
-	run_strcpy_test("\"Hello, World!\"",         "Hello, World!");
-	run_strcpy_test("\"42 School\"",             "42 School");
-	run_strcpy_test("Spaces only \"   \"",       "   ");
-
-	/* Ký tự đặc biệt */
-	run_strcpy_test("Newline/tab \"\\n\\t\\r\"", "\n\t\r");
-	run_strcpy_test("Numbers \"1234567890\"",     "1234567890");
-	run_strcpy_test("Non-ASCII \"é à ü\"",       "é à ü");
-
-	/* Chuỗi dài */
-	run_strcpy_test("50 'A' chars",
-		"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-
-	/* Overwrite: copy ngắn hơn vào buffer đã có nội dung dài hơn */
-	{
-		char	buf_ref[64];
-		char	buf_ft[64];
-
-		strcpy(buf_ref,    "LongStringInBuffer");
-		strcpy(buf_ft,     "LongStringInBuffer");
-		strcpy(buf_ref,    "Short");
-		ft_strcpy(buf_ft,  "Short");
-
-		int pass = (strcmp(buf_ref, buf_ft) == 0);
-		printf("%-35s │ ref=\"%-10s\" │ ft=\"%-10s\" │ %s%s%s\n",
-			"Overwrite longer with shorter",
-			buf_ref, buf_ft,
-			pass ? COLOR_GREEN : COLOR_RED,
-			pass ? "PASS" : "FAIL",
-			COLOR_RESET);
-	}
-
-	/* ─── ft_strcmp vs strcmp ─────────────────────────────────────────────── */
-printf("\n=== ft_strcmp vs strcmp ===\n\n");
-printf("%-35s │ %-8s │ %-8s │ %s\n",
-	"Test case", "strcmp", "ft_strcmp", "Result");
-printf("%.35s─┼─%.8s─┼─%.8s─┼─%.6s\n",
-	"───────────────────────────────────",
-	"────────", "────────", "──────");
-
-/* Chuỗi giống nhau */
-run_strcmp_test("Both empty",                "", "");
-run_strcmp_test("Same string",               "Hello", "Hello");
-run_strcmp_test("Same with spaces",          "42 School", "42 School");
-
-/* Khác nhau */
-run_strcmp_test("First < second",            "abc", "abd");
-run_strcmp_test("First > second",            "abd", "abc");
-run_strcmp_test("Prefix vs longer",          "abc", "abcd");
-run_strcmp_test("Longer vs prefix",          "abcd", "abc");
-
-/* Ký tự đặc biệt */
-run_strcmp_test("Numbers",                   "123", "124");
-run_strcmp_test("Special chars",             "\n\t", "\n");
-run_strcmp_test("Non-ASCII",                 "é", "ê");
-
-/* Khác ở ký tự cuối */
-run_strcmp_test("Diff at last char",         "testA", "testB");
-
-/* Empty vs non-empty */
-run_strcmp_test("Empty vs non-empty",        "", "a");
-run_strcmp_test("Non-empty vs empty",        "a", "");
-
-	printf("\n");
- printf("=== ft_write test suite ===\n");
-    printf("Kiểm tra ft_write vs write (man 2 write)\n");
-
-    test_normal_stdout();
-    test_zero_bytes();
-    test_write_to_file();
-    test_write_stderr();
-    test_invalid_fd();
-    test_readonly_fd();
-    // test_null_buf();
-    test_closed_fd();
-
-    printf("\n===========================\n");
-    printf("Kết quả: %d passed, %d failed\n", g_pass, g_fail);
-    printf("===========================\n");
-
-    return (g_fail > 0 ? EXIT_FAILURE : EXIT_SUCCESS);
+    summary();
+    return (g_fail > 0 ? 1 : 0);
 }
