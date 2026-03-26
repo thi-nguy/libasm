@@ -3,7 +3,7 @@ CC      = gcc
 NASM    = nasm
 AR      = ar
 
-CC_FLAGS  	= -Wall -Wextra -Werror -g -I$(INC_DIR)
+CC_FLAGS  	=  -I$(INC_DIR)
 NASM_FLAGS 	= -f elf64 -g -Fdwarf     	# Linux x86-64; change to `macho64  -Fmacho` on macOS, be able to debug with gdp too.
 AR_FLAGS 	= rcs               		# r=insert, c=create, s=add symbol index
 

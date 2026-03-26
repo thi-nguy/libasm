@@ -306,5 +306,6 @@ int main(void)
     test_read();
 
     summary();
+	
     return (g_fail > 0 ? 1 : 0);
 }
