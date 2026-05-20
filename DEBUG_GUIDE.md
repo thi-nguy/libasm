@@ -1,60 +1,59 @@
-# Debug Assembly x86_64 trong terminal trên Linux
-## 1. Flow debug bằng GDB trong terminal:
-
+# Debug Assembly x86_64 using terminal on Linux
+## 1. Debug flow (using GDB):
 ```bash
 # Build
 nasm -f elf64 -g -F dwarf example.asm -o example.o
 ld example.o -o example
 
-# Debug
+# Debug by GDB
 gdb ./example
 
-# Trong GDB
+# Inside GDB
 (gdb) break _start
 (gdb) run
 (gdb) layout asm
 (gdb) layout regs
 (gdb) si              # step instruction
 (gdb) info registers
-(gdb) x/16xg $rsp     # xem stack
+(gdb) x/16xg $rsp     # view stack
 ```
-## 2. Các lệnh hữu ích
-### a) Xem thanh ghi
+## 2. Useful commands
+### a) View Register
 
-**Xem tất cả thanh ghi:**
+**View all registers:**
 ```
 info registers
 ```
 
-**Xem thanh ghi cụ thể:**
+**View specific Register**
 ```
 info registers rax rbx rcx rdx
 info registers rip
 ```
 
-**Xem thanh ghi dạng hex:**
+**View Register in hex:**
 ```
 p/x $rax
 p/x $rbx
 ```
 
-**Xem thanh ghi dạng decimal:**
+**View Register in decimal:**
 ```
 p/d $rax
 ```
 
-**Xem flags:**
+**View flags:**
 ```
 info registers eflags
 ```
 
 ### b) Memory Viewer (Debug Console)
-**Xem stack:**
+**View stack:**
 ```
 x/16xg $rsp
 ```
 
-**Xem memory tại địa chỉ cụ thể:**
+**View memory at specific address:**
 ```
 x/10xb 0x601000
 x/4xw $rsi
@@ -63,17 +62,17 @@ x/4xw $rsi
 Format:
 - `x` = examine
 - `16` = số lượng
-- `x` = hex format (có thể dùng: d-decimal, u-unsigned, t-binary)
+- `x` = hex format (or: d-decimal, u-unsigned, t-binary)
 - `g` = giant (8 bytes), `w` = word (4 bytes), `h` = half (2 bytes), `b` = byte
 
-**Xem memory:**
+**View memory:**
 ```
-x/s $rsi          # Xem string
-x/16xg $rsp       # Xem stack (16 quadwords)
-x/4xw numbers     # Xem array
+x/s $rsi          # View string
+x/16xg $rsp       # View stack (16 quadwords)
+x/4xw numbers     # View array
 ```
 
-### c) Display auto (hiển thị mỗi lần dừng)
+### c) Display auto
 ```
 display/x $rax
 display/i $rip
@@ -90,12 +89,12 @@ undisplay 1
 break _start if $rax == 0x10
 ```
 
-### b) Watchpoint (dừng khi biến thay đổi)
+### b) Watchpoint (stop when variables change values)
 ```
 watch result
 ```
 
-### d) Xem source code + assembly cùng lúc
+### d) View source code + assembly together
 ```
 layout split
 ```
