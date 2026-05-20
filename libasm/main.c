@@ -58,6 +58,12 @@ static void test_strlen(void)
     memset(longstr, 'A', 1023);
     longstr[1023] = '\0';
     ASSERT(ft_strlen(longstr) == strlen(longstr),           "strlen: 1023-char string");
+    /* Very long string (4095 chars) */
+    char verylongstr[4096];
+    memset(verylongstr, 'B', 4095);
+    verylongstr[4095] = '\0';
+    ASSERT(ft_strlen(verylongstr) == strlen(verylongstr),   "strlen: 4095-char string");
+
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
