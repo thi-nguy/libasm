@@ -3,6 +3,10 @@ section .text
     global ft_read
 
 ft_read:
+    push rbp
+    mov rbp, rsp
+    and rsp, -16
+    
     push rbx
 
     mov rax, 0
@@ -17,10 +21,16 @@ ft_read:
     mov [rax], ebx
     pop rbx
     mov rax, -1
+
+    mov rsp, rbp
+    pop rbp
     ret
 
 .read_ok:
     pop rbx
+
+    mov rsp, rbp
+    pop rbp
     ret
 
 section .note.GNU-stack noalloc noexec nowrite progbits
