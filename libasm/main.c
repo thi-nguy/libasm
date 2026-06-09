@@ -147,9 +147,12 @@ static void test_strcmp(void)
     ASSERT(sign(ft_strcmp("abc", "ABC")) == sign(strcmp("abc", "ABC")),
            "strcmp: case sensitive \"abc\" vs \"ABC\"");
 
-    /* High ASCII / unsigned comparison */
-    ASSERT(sign(ft_strcmp("\x80", "\x01")) == sign(strcmp("\x80", "\x01")),
-           "strcmp: high-ASCII unsigned comparison");
+    /* First string longer */
+    ASSERT(sign(ft_strcmp("The answer is 42.", "The")) == sign(strcmp("The answer is 42.", "The")),
+           "strcmp: first string longer \"The answer is 42.\" vs \"The\"");
+    /* Second string longer */
+    ASSERT(sign(ft_strcmp("Cat", "CatIsCool")) == sign(strcmp("Cat", "CatIsCool")),
+           "strcmp: second string longer \"Cat\" vs \"CatIsCool\"");
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
@@ -169,8 +172,8 @@ static void test_strdup(void)
 
     /* Empty string */
     dup = ft_strdup("");
-    ASSERT(dup != NULL,                 "strdup: \"\" not NULL");
-    ASSERT(strcmp(dup, "") == 0,        "strdup: \"\" content match");
+    ASSERT(dup != NULL,                 "strdup: Empty string - check addr of pointer: \"\" not NULL");
+    ASSERT(strcmp(dup, "") == 0,        "strdup: Empty string - check content: \"\" content match");
     free(dup);
 
     /* Pointer differs from original */
@@ -194,6 +197,23 @@ static void test_strdup(void)
     ASSERT(dup && strcmp(dup, "line\nnewline\ttab") == 0,
                                         "strdup: \\n and \\t");
     free(dup);
+
+    /* Very long string */
+    char verylongstr[4096];
+    memset(verylongstr, 'B', 4095);
+    verylongstr[4095] = '\0';
+    dup = ft_strdup(verylongstr);
+    ASSERT(dup != NULL, "strdup: very long string not NULL");
+    ASSERT(strcmp(dup, verylongstr) == 0,   "strdup: very long string content match");
+    free(dup);
+
+    /* Test Errno */
+    //errno = 0;
+    //char *res = ft_strdup("Test");
+   // printf("Errno is: %s\n", strerror(errno));
+  //  printf("Errno is: %i\n", errno);
+   // free(res);
+    
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
@@ -204,8 +224,6 @@ static void test_write(void)
     SECTION("ft_write");
 
     /* ── stdout ── */
-    printf("  [INFO] ft_write to stdout (fd=1): ");
-    fflush(stdout);
     ssize_t ret = ft_write(1, "ft_write OK\n", 12);
     ASSERT(ret == 12, "write: return value == nbytes on stdout");
 

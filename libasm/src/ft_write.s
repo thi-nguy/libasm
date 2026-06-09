@@ -5,9 +5,10 @@ section .text
 ft_write:
     push rbp
     mov rbp, rsp
-    and rsp, -16
     
     push rbx
+
+    and rsp, -16
 
     mov rax, 1
     syscall
