@@ -25,7 +25,6 @@
 #define PASS(label) printf(GREEN "  [PASS]" RESET " %s\n", label)
 #define FAIL(label) printf(RED   "  [FAIL]" RESET " %s\n", label)
 #define SECTION(name) printf("\n" BOLD CYAN "══ %s ══\n" RESET, name)
-#define CHECK(cond, label) do { if (cond) PASS(label); else FAIL(label); } while (0)
 
 static int g_pass = 0;
 static int g_fail = 0;
@@ -99,16 +98,20 @@ static void test_strcpy(void)
     ft_strcpy(dst1, "line1\nline2\ttab");
     ASSERT(strcmp(dst1, dst2) == 0, "strcpy: \\n and \\t");
 
-    /* Null terminator placed correctly */
-    memset(dst1, 0xFF, sizeof(dst1));
-    ft_strcpy(dst1, "end");
-    ASSERT(dst1[3] == '\0', "strcpy: null terminator at correct position");
+    /* Very Long String */
+    char verylongstr[4096];
+    char verylongdst1[4096];
+    char verylongdst2[4096];
+    memset(verylongstr, 'B', 4095);
+    verylongstr[4095] = '\0';
+    strcpy(verylongdst2, verylongstr);
+    ft_strcpy(verylongdst1, verylongstr);
+    ASSERT(strcmp(verylongdst1, verylongdst2) == 0, "strcpy: very long string");
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
 /*  ft_strcmp                                                                 */
 /* ══════════════════════════════════════════════════════════════════════════ */
-
 /* Normalise to -1 / 0 / 1 so we compare sign, not raw value */
 static int sign(int n) { return (n > 0) - (n < 0); }
 
